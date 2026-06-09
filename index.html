@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Media Server</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .backdrop-gradient {
+            background: linear-gradient(to top, #09090b 5%, rgba(9, 9, 11, 0.1) 50%, rgba(9, 9, 11, 0.7) 100%);
+        }
+        ::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-cursor { cursor: none !important; }
+
+        .carousel-viewport {
+            position: relative;
+            height: 75vh;
+            width: 100%;
+            overflow: hidden;
+            background: #09090b;
+        }
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .slide-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            transform: scale(1.05); 
+            filter: blur(20px) brightness(0.6);
+            z-index: 1;
+        }
+        
+        .hero-slide.slide-active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        .hero-slide .slide-content {
+            transform: translateX(30px);
+            opacity: 0;
+            transition: transform 1s cubic-bezier(0.25, 1, 0.5, 1) 0.2s, opacity 1s ease 0.2s;
+        }
+
+        .hero-slide.slide-active .slide-content {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .track-container {
+            position: relative;
+            height: 4px;
+            background: rgba(63, 63, 70, 0.6);
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: height 0.15s;
+        }
+        .track-container:hover { height: 6px; }
+        
+        .track-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: #ffffff;
+            border-radius: 9999px;
+            width: 100%;
+            pointer-events: none;
+        }
+        
+        .track-handle {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 12px;
+            height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            pointer-events: none;
+            transition: transform 0.15s;
+        }
+        .track-container:hover .track-handle { transform: translate(-50%, -50%) scale(1); }
+
+        #custom-subtitle-text {
+            background-color: transparent !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            font-size: 2.5rem;
+            line-height: 1.2;
+            font-weight: 600;
+            text-shadow: 
+                -2px -2px 0 #000,
+                 2px -2px 0 #000,
+                -2px  2px 0 #000,
+                 2px  2px 0 #000,
+                 0    4px 6px rgba(0,0,0,0.9);
+        }
+
+        @media (max-width: 768px) {
+            #custom-subtitle-text {
+                font-size: 1.75rem;
+                text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            }
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen selection:bg-white selection:text-black">
+
+    <div id="resume-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-sm w-full text-center shadow-2xl flex flex-col gap-5">
+            <div>
+                <h3 class="text-lg font-bold text-white mb-1">Resume Playback</h3>
+                <p id="resume-text" class="text-sm text-zinc-400">Would you like to resume this movie at 00:00:00?</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="resume-btn-no" class="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 fill-none stroke-current" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Start Over
+                </button>
+                <button id="resume-btn-yes" class="bg-white text-black hover:bg-zinc-200 font-semibold py-2 px-4 rounded-lg transition text-sm flex items-center justify-center gap-2">
+					<svg class="w-4 h-4 fill-current text-black mb-[1px]" viewBox="0 0 22 20">
+						<path d="M8 5v14l11-7z"/>
+					</svg>
+					<span>Continue</span>
+				</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="carousel-viewport group/viewport">
+        
+        <header id="hero-slide-a" class="hero-slide slide-active">
+            <div class="slide-bg"></div>
+            <div class="absolute inset-0 backdrop-gradient z-10"></div>
+            <div class="slide-content relative z-20 w-full max-w-7xl px-8 pb-24 md:px-16 flex flex-col gap-6 mx-auto">
+                <div class="h-36 md:h-48 w-full max-w-sm md:max-w-xl flex items-end container-logo">
+                    <h1 class="text-5xl md:text-7xl font-black tracking-tight drop-shadow-md current-title hidden">Loading...</h1>
+                    <img class="max-h-full max-w-full object-contain current-logo filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)]" src="" alt="">
+                </div>
+                <p class="text-zinc-200 text-base md:text-lg max-w-3xl line-clamp-3 current-desc drop-shadow">No movie files found. Place them in the Movies folder and run setup.py</p>
+                <div class="mt-2">
+                    <button class="bg-white text-black hover:bg-zinc-200 font-bold px-8 py-4 rounded-xl transition flex items-center gap-3 shadow-2xl btn-play text-base md:text-lg transform active:scale-95">
+                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play Movie
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <header id="hero-slide-b" class="hero-slide">
+            <div class="slide-bg"></div>
+            <div class="absolute inset-0 backdrop-gradient z-10"></div>
+            <div class="slide-content relative z-20 w-full max-w-7xl px-8 pb-24 md:px-16 flex flex-col gap-6 mx-auto">
+                <div class="h-36 md:h-48 w-full max-w-sm md:max-w-xl flex items-end container-logo">
+                    <h1 class="text-5xl md:text-7xl font-black tracking-tight drop-shadow-md current-title hidden"></h1>
+                    <img class="max-h-full max-w-full object-contain current-logo filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)]" src="" alt="">
+                </div>
+                <p class="text-zinc-200 text-base md:text-lg max-w-3xl line-clamp-3 current-desc drop-shadow"></p>
+                <div class="mt-2">
+                    <button class="bg-white text-black hover:bg-zinc-200 font-bold px-8 py-4 rounded-xl transition flex items-center gap-3 shadow-2xl btn-play text-base md:text-lg transform active:scale-95">
+                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play Movie
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="banner-controls" class="absolute inset-x-0 top-1/2 -translate-y-1/2 z-30 px-4 md:px-8 flex justify-between pointer-events-none transition-opacity duration-300">
+            <button id="banner-prev-btn" class="pointer-events-auto bg-black/30 hover:bg-black/60 text-white/70 hover:text-white p-3 rounded-full transition backdrop-blur-sm transform active:scale-95 shadow-md">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <button id="banner-next-btn" class="pointer-events-auto bg-black/30 hover:bg-black/60 text-white/70 hover:text-white p-3 rounded-full transition backdrop-blur-sm transform active:scale-95 shadow-md">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-8 md:px-16 py-12 relative z-20 -mt-10">
+        <h2 class="text-xs font-bold tracking-widest text-zinc-500 mb-6 uppercase">My Library</h2>
+        <div id="movie-grid" class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-6 gap-y-10 justify-center"></div>
+    </main>
+
+    <div id="video-modal" class="fixed inset-0 bg-black z-50 hidden flex items-center justify-center select-none group">
+        <video id="main-video" class="w-full h-full object-contain" preload="auto" controlslist="nodownload"></video>
+
+        <div id="custom-subtitle-overlay" class="absolute bottom-[10%] left-1/2 -translate-x-1/2 z-40 pointer-events-none text-center w-full max-w-[90%] px-4 flex justify-center">
+            <span id="custom-subtitle-text" class="text-white font-sans hidden inline-block whitespace-pre-line text-center transition-all duration-100"></span>
+        </div>
+
+        <div id="player-top-bar" class="absolute inset-x-0 top-0 p-8 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 flex items-center gap-4 z-50">
+            <button id="close-player-btn" class="text-white/80 hover:text-white transition transform hover:-translate-x-1 p-2 rounded-full hover:bg-white/10">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <h2 id="player-movie-title" class="text-xl md:text-2xl font-bold tracking-tight text-white drop-shadow">Movie Title</h2>
+        </div>
+
+        <div id="player-controls" class="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-opacity duration-300 flex flex-col gap-4 z-50">
+            <div class="flex items-center gap-4 w-full relative">
+                <span id="time-current" class="text-xs font-mono text-zinc-400 select-none min-w-[55px]">00:00:00</span>
+                <div id="timeline-container" class="track-container flex-1">
+                    <div id="timeline-progress" class="track-progress" style="width: 0%;"></div>
+                    <div id="timeline-handle" class="track-handle" style="left: 0%;"></div>
+                </div>
+                <div id="time-preview" class="absolute bottom-full mb-2 hidden bg-zinc-900/90 text-white text-xs font-mono px-2 py-1 rounded border border-zinc-700/50 pointer-events-none transform -translate-x-100 shadow-xl">00:00:00</div>
+                <span id="time-duration" class="text-xs font-mono text-zinc-400 select-none min-w-[55px]">00:00:00</span>
+            </div>
+
+            <div class="flex items-center justify-between px-2">
+                <div class="flex items-center gap-6">
+                    <button id="play-pause-btn" class="text-white hover:text-zinc-300 transition transform active:scale-95">
+                        <svg id="play-icon" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="pause-icon" class="w-6 h-6 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    
+                    <div id="volume-area" class="flex items-center gap-3 group/volume px-1 py-1.5 transition">
+                        <button id="mute-btn" class="text-zinc-400 hover:text-white transition">
+							<svg id="vol-icon" class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+								<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+							</svg>
+							<svg id="mute-icon" class="w-5 h-5 fill-current hidden" viewBox="0 0 24 24">
+								<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+							</svg>
+						</button>
+                        
+                        <div id="volume-container" class="track-container w-20">
+                            <div id="volume-progress" class="track-progress" style="width: 100%;"></div>
+                            <div id="volume-handle" class="track-handle" style="left: 100%;"></div>
+                        </div>
+
+                        <span id="volume-indicator" class="text-xs font-mono text-zinc-400 w-8 text-right">100%</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="relative inline-block text-left" id="subtitles-menu-container">
+                        <button id="subtitles-btn" class="text-zinc-400 hover:text-white transition p-2 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                        </button>
+                        <div id="subtitles-menu" class="absolute bottom-full right-0 mb-3 w-28 bg-zinc-900 border border-zinc-800 rounded-md shadow-xl hidden transition duration-200 z-50 flex flex-col p-1 text-xs">
+                            <button onclick="changeSubtitleTrack('de')" class="sub-option-btn text-left px-3 py-2 rounded hover:bg-zinc-800 transition text-zinc-400 hover:text-white" data-lang="de">Deutsch</button>
+                            <button onclick="changeSubtitleTrack('en')" class="sub-option-btn text-left px-3 py-2 rounded hover:bg-zinc-800 transition text-zinc-400 hover:text-white" data-lang="en">Englisch</button>
+                            <button onclick="changeSubtitleTrack('off')" class="sub-option-btn text-left px-3 py-2 rounded hover:bg-zinc-800 transition text-zinc-300 font-bold bg-zinc-800/50" data-lang="off">Aus</button>
+                        </div>
+                    </div>
+
+                    <button id="fullscreen-btn" class="text-zinc-400 hover:text-white transition transform active:scale-95">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="movies.js"></script>
+    <script>
+		const volIcon = document.getElementById('vol-icon');
+		const muteIcon = document.getElementById('mute-icon');
+        const grid = document.getElementById('movie-grid');
+        const slideA = document.getElementById('hero-slide-a');
+        const slideB = document.getElementById('hero-slide-b');
+        
+        const videoModal = document.getElementById('video-modal');
+        const video = document.getElementById('main-video');
+        const playerControls = document.getElementById('player-controls');
+        const playerTopBar = document.getElementById('player-top-bar');
+        const playerMovieTitle = document.getElementById('player-movie-title');
+        
+        const subtitlesBtn = document.getElementById('subtitles-btn');
+        const subtitlesMenu = document.getElementById('subtitles-menu');
+        const customSubOverlay = document.getElementById('custom-subtitle-overlay');
+        const customSubText = document.getElementById('custom-subtitle-text');
+        
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        
+        const timelineContainer = document.getElementById('timeline-container');
+        const timelineProgress = document.getElementById('timeline-progress');
+        const timelineHandle = document.getElementById('timeline-handle');
+        const timePreview = document.getElementById('time-preview');
+        
+        const timeCurrent = document.getElementById('time-current');
+        const timeDuration = document.getElementById('time-duration');
+        
+        const volumeArea = document.getElementById('volume-area');
+        const volumeContainer = document.getElementById('volume-container');
+        const volumeProgress = document.getElementById('volume-progress');
+        const volumeHandle = document.getElementById('volume-handle');
+        const volumeIndicator = document.getElementById('volume-indicator');
+        const muteBtn = document.getElementById('mute-btn');
+        
+        const closePlayerBtn = document.getElementById('close-player-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+        const bannerControls = document.getElementById('banner-controls');
+        const bannerPrevBtn = document.getElementById('banner-prev-btn');
+        const bannerNextBtn = document.getElementById('banner-next-btn');
+
+        const resumeModal = document.getElementById('resume-modal');
+        const resumeText = document.getElementById('resume-text');
+        const resumeBtnYes = document.getElementById('resume-btn-yes');
+        const resumeBtnNo = document.getElementById('resume-btn-no');
+
+        let currentHeroIndex = 0;
+        let controlTimeout = null;
+        let bannerControlTimeout = null;
+        let isDraggingTimeline = false;
+        let isDraggingVolume = false; 
+        let lastVolume = 1;
+        let currentVolume = 1;
+        let activeSlideEl = slideA;
+        let hiddenSlideEl = slideB;
+        let rotationInterval = null;
+        let progressSaveInterval = null;
+        let activeMovieFile = ""; 
+
+        let parsedSubtitles = [];
+        let activeSubtitleLanguage = 'off';
+        let subCache = { de: [], en: [] };
+
+        if (typeof movieLibrary !== 'undefined' && movieLibrary.length > 0) {
+            renderGrid(movieLibrary);
+            const randomIndex = Math.floor(Math.random() * movieLibrary.length);
+            initHeroView(randomIndex);
+            startBannerRotation();
+        }
+
+        function renderGrid(library) {
+            grid.innerHTML = library.map((movie, index) => `
+                <div onclick="launchTheaterByIndex(${index})" class="group cursor-pointer flex flex-col gap-2 w-full max-w-[220px]">
+                    <div class="aspect-[2/3] w-full bg-zinc-900 rounded-lg overflow-hidden relative shadow-md">
+                        <div class="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105 " style="background-image: url('${movie.poster || 'metadata/placeholder.png'}')"></div>
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div class="bg-white text-black  p-3 rounded-full shadow-2xl flex items-center justify-center">
+                                <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-0.5">
+                        <h3 class="font-medium text-xs sm:text-sm text-zinc-200 group-hover:text-white truncate transition duration-200">${movie.title}</h3>
+                    </div>
+                </div>
+            `).join('');
+        }
+		
+		
+
+        function populateSlideData(slideElement, movieIndex) {
+            const movie = movieLibrary[movieIndex];
+            
+            const bgEl = slideElement.querySelector('.slide-bg');
+            if (bgEl) bgEl.style.backgroundImage = `url('${movie.backdrop || movie.poster || ''}')`;
+            
+            const titleEl = slideElement.querySelector('.current-title');
+            const logoEl = slideElement.querySelector('.current-logo');
+            const descEl = slideElement.querySelector('.current-desc');
+            const playBtn = slideElement.querySelector('.btn-play');
+
+            if (movie.logo) {
+                logoEl.src = movie.logo;
+                logoEl.classList.remove('hidden');
+                titleEl.classList.add('hidden');
+            } else {
+                titleEl.innerText = movie.title;
+                titleEl.classList.remove('hidden');
+                logoEl.classList.add('hidden');
+            }
+            descEl.innerText = movie.description || "No Overview Provided.";
+            playBtn.onclick = () => launchTheaterByIndex(movieIndex);
+        }
+
+        function initHeroView(index) {
+            currentHeroIndex = index;
+            populateSlideData(activeSlideEl, index);
+            activeSlideEl.className = "hero-slide slide-active";
+        }
+
+        function transitionHeroView(nextIndex) {
+            currentHeroIndex = nextIndex;
+            populateSlideData(hiddenSlideEl, nextIndex);
+            
+            hiddenSlideEl.className = "hero-slide slide-active";
+            activeSlideEl.className = "hero-slide"; 
+
+            const temp = activeSlideEl;
+            activeSlideEl = hiddenSlideEl;
+            hiddenSlideEl = temp;
+        }
+
+        function startBannerRotation() {
+            if (rotationInterval) clearInterval(rotationInterval);
+            rotationInterval = setInterval(() => {
+                if (videoModal.classList.contains('hidden')) {
+                    let nextIndex = (currentHeroIndex + 1) % movieLibrary.length;
+                    transitionHeroView(nextIndex);
+                }
+            }, 10000);
+        }
+
+        bannerNextBtn.addEventListener('click', () => {
+            let nextIndex = (currentHeroIndex + 1) % movieLibrary.length;
+            transitionHeroView(nextIndex);
+            startBannerRotation();
+        });
+
+        bannerPrevBtn.addEventListener('click', () => {
+            let prevIndex = (currentHeroIndex - 1 + movieLibrary.length) % movieLibrary.length;
+            transitionHeroView(prevIndex);
+            startBannerRotation();
+        });
+
+        function resetBannerControlTimeout() {
+            bannerControls.style.opacity = '1';
+            clearTimeout(bannerControlTimeout);
+            bannerControlTimeout = setTimeout(() => {
+                bannerControls.style.opacity = '0';
+            }, 2500);
+        }
+        document.querySelector('.carousel-viewport').addEventListener('mousemove', resetBannerControlTimeout);
+
+        function parseSRT(data) {
+			const map = [];
+			const blocks = data.replace(/\r\n/g, '\n').split('\n\n');
+			
+			for (let block of blocks) {
+				const lines = block.split('\n');
+				if (lines.length >= 2) {
+					const timeMatch = block.match(/(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})/);
+					
+					if (timeMatch) {
+						const start = timeToSeconds(timeMatch[1]);
+						const end = timeToSeconds(timeMatch[2]);
+						
+						let text = lines.slice(lines.indexOf(timeMatch[0]) + 1).join('\n');
+						
+						text = text.replace(/<\/?[^>]+(>|$)/g, "");
+						
+						map.push({ start, end, text });
+					}
+				}
+			}
+			return map;
+		}
+
+		function timeToSeconds(t) {
+			const [h, m, s] = t.split(':');
+			const [sec, ms] = s.split(/[,.]/);
+			return parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(sec) + parseInt(ms) / 1000;
+		}
+
+		function launchTheaterByIndex(index) {
+			const movie = movieLibrary[index];
+			playerMovieTitle.innerText = movie.title;
+			activeMovieFile = movie.file;
+			
+			video.src = movie.file;
+			subCache = { de: [], en: [] };
+			
+			if (movie.subtitles) {
+				if (movie.subtitles.de) subCache.de = parseSRT(movie.subtitles.de);
+				if (movie.subtitles.en) subCache.en = parseSRT(movie.subtitles.en);
+			}
+			
+			changeSubtitleTrack('off');
+
+            const savedTime = localStorage.getItem(`progress_${activeMovieFile}`);
+            
+            if (savedTime && parseFloat(savedTime) > 5) {
+                resumeText.innerText = `Would you like to resume this video at ${formatTime(parseFloat(savedTime))}?`;
+                resumeModal.classList.remove('hidden');
+
+                resumeBtnYes.onclick = () => {
+                    resumeModal.classList.add('hidden');
+                    startPlayback(parseFloat(savedTime));
+                };
+
+                resumeBtnNo.onclick = () => {
+                    resumeModal.classList.add('hidden');
+                    localStorage.removeItem(`progress_${activeMovieFile}`);
+                    startPlayback(0);
+                };
+            } else {
+                startPlayback(0);
+            }
+		}
+
+        function startPlayback(startTime) {
+            videoModal.classList.remove('hidden');
+            if (startTime > 0) {
+                video.currentTime = startTime;
+            }
+            video.play().catch(err => console.log("Playback:", err));
+			updatePlayUI(true);
+			resetControlTimeout();
+            startProgressSaving();
+        }
+
+        function startProgressSaving() {
+            if (progressSaveInterval) clearInterval(progressSaveInterval);
+            progressSaveInterval = setInterval(() => {
+                if (!video.paused && video.currentTime > 0 && activeMovieFile) {
+                    if (video.duration - video.currentTime < 30) {
+                        localStorage.removeItem(`progress_${activeMovieFile}`);
+                    } else {
+                        localStorage.setItem(`progress_${activeMovieFile}`, video.currentTime);
+                    }
+                }
+            }, 5000);
+        }
+
+        function stopProgressSaving() {
+            if (progressSaveInterval) {
+                clearInterval(progressSaveInterval);
+                progressSaveInterval = null;
+            }
+        }
+
+        window.changeSubtitleTrack = function(lang) {
+            activeSubtitleLanguage = lang;
+            
+            document.querySelectorAll('.sub-option-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.className = "sub-option-btn text-left px-3 py-2 rounded transition text-zinc-300 font-bold bg-zinc-800/50";
+                } else {
+                    btn.className = "sub-option-btn text-left px-3 py-2 rounded hover:bg-zinc-800 transition text-zinc-400 hover:text-white";
+                }
+            });
+
+            if (lang === 'off') {
+                parsedSubtitles = [];
+                customSubText.classList.add('hidden');
+            } else {
+                parsedSubtitles = subCache[lang] || [];
+            }
+            subtitlesMenu.classList.add('hidden');
+        };
+
+        subtitlesBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            subtitlesMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+            subtitlesMenu.classList.add('hidden');
+        });
+
+        video.addEventListener('timeupdate', () => {
+            if (!isDraggingTimeline && !isNaN(video.duration)) {
+                timeCurrent.innerText = formatTime(video.currentTime);
+                updateTimelineWidths(video.currentTime, video.duration);
+            }
+
+            if (activeSubtitleLanguage === 'off' || parsedSubtitles.length === 0) {
+                customSubText.classList.add('hidden');
+                return;
+            }
+
+            const now = video.currentTime;
+            const activeLine = parsedSubtitles.find(line => now >= line.start && now <= line.end);
+
+            if (activeLine) {
+                if (customSubText.innerText !== activeLine.text) {
+                    customSubText.innerText = activeLine.text;
+                    customSubText.classList.remove('hidden');
+                }
+            } else {
+                customSubText.classList.add('hidden');
+                customSubText.innerText = '';
+            }
+        });
+
+		function setVolume(val) {
+			val = Math.max(0, Math.min(1, val));
+			currentVolume = val;
+			video.volume = val;
+			const pct = val * 100;
+
+            volumeProgress.style.width = `${pct}%`;
+
+            volumeHandle.style.left = `${pct}%`;
+
+            volumeIndicator.innerText = `${Math.round(val * 100)}%`;
+
+			if (val === 0) {
+				volIcon.classList.add('hidden');
+				muteIcon.classList.remove('hidden');
+			} else {
+				volIcon.classList.remove('hidden');
+				muteIcon.classList.add('hidden');
+			}
+		}
+
+        function getVolumeFromEvent(e) {
+            const rect = volumeContainer.getBoundingClientRect();
+            const posX = (e.clientX - rect.left) / rect.width;
+            return Math.max(0, Math.min(1, posX));
+        }
+
+        volumeContainer.addEventListener('mousedown', (e) => {
+            isDraggingVolume = true;
+            setVolume(getVolumeFromEvent(e));
+            resetControlTimeout();
+        });
+
+        volumeArea.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const step = 0.05;
+            if (e.deltaY < 0) setVolume(currentVolume + step);
+            else setVolume(currentVolume - step);
+            resetControlTimeout();
+        });
+
+        muteBtn.addEventListener('click', () => {
+            if (video.volume > 0) { 
+                lastVolume = video.volume; 
+                setVolume(0); 
+            } else { 
+                setVolume(lastVolume); 
+            }
+        });
+
+        function updateTimelineWidths(currentTime, duration) {
+            if (isNaN(duration)) return;
+            const pct = (currentTime / duration) * 100;
+            timelineProgress.style.width = `${pct}%`;
+            timelineHandle.style.left = `${pct}%`;
+        }
+
+        video.addEventListener('loadedmetadata', () => {
+            timeDuration.innerText = formatTime(video.duration);
+        });
+
+        function getTimelineTimeFromEvent(e) {
+            const rect = timelineContainer.getBoundingClientRect();
+            const posX = (e.clientX - rect.left) / rect.width;
+            const clampedX = Math.max(0, Math.min(1, posX));
+            return clampedX * video.duration;
+        }
+
+        timelineContainer.addEventListener('mousemove', (e) => {
+            if (isNaN(video.duration)) return;
+            const targetTime = getTimelineTimeFromEvent(e);
+            timePreview.innerText = formatTime(targetTime);
+            timePreview.classList.remove('hidden');
+
+            const rect = timelineContainer.getBoundingClientRect();
+            const offsetLeft = e.clientX - rect.left + 55; 
+            timePreview.style.left = `${offsetLeft}px`;
+            timePreview.style.transform = 'translateX(-50%)';
+        });
+
+        timelineContainer.addEventListener('mouseleave', () => {
+            timePreview.classList.add('hidden');
+        });
+
+        timelineContainer.addEventListener('mousedown', (e) => {
+            if (isNaN(video.duration)) return;
+            isDraggingTimeline = true;
+            handleTimelineScrub(e);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingTimeline) handleTimelineScrub(e);
+            if (isDraggingVolume) {
+                setVolume(getVolumeFromEvent(e));
+                resetControlTimeout();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDraggingTimeline) isDraggingTimeline = false;
+            if (isDraggingVolume) isDraggingVolume = false;
+        });
+
+        function handleTimelineScrub(e) {
+            const newTime = getTimelineTimeFromEvent(e);
+            video.currentTime = newTime;
+            timeCurrent.innerText = formatTime(newTime);
+            updateTimelineWidths(newTime, video.duration);
+        }
+
+        function togglePlay() {
+            if (video.paused) { video.play(); updatePlayUI(true); }
+            else { video.pause(); updatePlayUI(false); }
+        }
+        playPauseBtn.addEventListener('click', togglePlay);
+        video.addEventListener('click', togglePlay);
+
+        function updatePlayUI(isPlaying) {
+            if (isPlaying) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "00:00:00";
+            const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) videoModal.requestFullscreen().catch(() => {});
+            else document.exitFullscreen();
+        });
+
+        function resetControlTimeout() {
+            playerControls.style.opacity = '1';
+            playerTopBar.style.opacity = '1';
+            videoModal.classList.remove('hide-cursor');
+            clearTimeout(controlTimeout);
+            if (!video.paused && !isDraggingTimeline && !isDraggingVolume) {
+                controlTimeout = setTimeout(() => {
+                    playerControls.style.opacity = '0';
+                    playerTopBar.style.opacity = '0';
+                    videoModal.classList.add('hide-cursor');
+                }, 2500);
+            }
+        }
+        videoModal.addEventListener('mousemove', resetControlTimeout);
+
+        function closePlayer() {
+            if (!video.paused && video.currentTime > 5 && activeMovieFile) {
+                if (video.duration - video.currentTime > 30) {
+                    localStorage.setItem(`progress_${activeMovieFile}`, video.currentTime);
+                }
+            }
+            stopProgressSaving();
+            video.pause();
+            videoModal.classList.add('hidden');
+            if (document.fullscreenElement) document.exitFullscreen();
+        }
+
+        closePlayerBtn.addEventListener('click', closePlayer);
+
+        document.addEventListener('keydown', (e) => {
+            if (!videoModal.classList.contains('hidden')) {
+                if (e.key === ' ') { e.preventDefault(); togglePlay(); resetControlTimeout(); }
+                if (e.key === 'ArrowRight') { video.currentTime += 10; resetControlTimeout(); }
+                if (e.key === 'ArrowLeft') { video.currentTime -= 10; resetControlTimeout(); }
+                if (e.key === 'Escape') { closePlayer(); }
+            }
+        });
+    </script>
+</body>
+</html>
