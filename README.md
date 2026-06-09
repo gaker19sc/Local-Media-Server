@@ -18,7 +18,7 @@ py setup.py
 
 Obtain a free API key at https://www.themoviedb.org/settings/api and follow the instructions on screen.
 
-Once the setup has finished, you can close the window and open index.html to start the program.
+Once the setup has finished, you can close the window and open **`index.html`** to start the program.
 
 ---
 
