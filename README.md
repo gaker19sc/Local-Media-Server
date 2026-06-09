@@ -9,7 +9,18 @@ A lightweight local media server designed to stream your personal movie library 
 
 ### Automatic setup (recommended)
 
-To set everything up, run the setup script:
+To set everything up, place your movie files in the Movies directory. You can also add subtitles.
+The system currently supports English and German subtitles using `.srt` files.
+
+1. Place your `.srt` files into the `Movies/Subtitles` folder.
+2. The subtitle filename must match the movie filename exactly, followed by the respective language suffix (`_en` or `_de`).
+
+**Example:**
+
+* Movie file: `Project Hail Mary.mp4`
+* Subtitle file: `Project Hail Mary_en.srt`
+
+Once that is done, run the setup script:
 
 ```bash
 py setup.py
