@@ -59,7 +59,7 @@
             transform: translateX(0);
             opacity: 1;
         }
-
+		
         .track-container {
             position: relative;
             height: 4px;
@@ -68,6 +68,12 @@
             cursor: pointer;
             transition: height 0.15s;
         }
+		
+		.track-container::before {
+			content: '';
+			position: absolute;
+			inset: -12px 0;
+		}
         .track-container:hover { height: 6px; }
         
         .track-progress {
@@ -211,14 +217,17 @@
 
         <div id="player-controls" class="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-opacity duration-300 flex flex-col gap-4 z-50">
             <div class="flex items-center gap-4 w-full relative">
-                <span id="time-current" class="text-xs font-mono text-zinc-400 select-none min-w-[55px]">00:00:00</span>
-                <div id="timeline-container" class="track-container flex-1">
-                    <div id="timeline-progress" class="track-progress" style="width: 0%;"></div>
-                    <div id="timeline-handle" class="track-handle" style="left: 0%;"></div>
-                </div>
-                <div id="time-preview" class="absolute bottom-full mb-2 hidden bg-zinc-900/90 text-white text-xs font-mono px-2 py-1 rounded border border-zinc-700/50 pointer-events-none transform -translate-x-100 shadow-xl">00:00:00</div>
-                <span id="time-duration" class="text-xs font-mono text-zinc-400 select-none min-w-[55px]">00:00:00</span>
-            </div>
+				<span id="time-current" class="text-xs font-mono text-zinc-400 select-none min-w-[55px]">00:00:00</span>
+				
+				<div id="timeline-container" class="track-container flex-1">
+					<div id="timeline-progress" class="track-progress" style="width: 0%;"></div>
+					<div id="timeline-handle" class="track-handle" style="left: 0%;"></div>
+					
+					<div id="time-preview" class="absolute bottom-full mb-2 hidden bg-zinc-900/90 text-white text-xs font-mono px-2 py-1 rounded border border-zinc-700/50 pointer-events-none transform -translate-x-1/2 shadow-xl">00:00:00</div>
+				</div>
+				
+				<span id="time-duration" class="text-xs font-mono text-zinc-400 select-none min-w-[55px]">00:00:00</span>
+			</div>
 
             <div class="flex items-center justify-between px-2">
                 <div class="flex items-center gap-6">
@@ -653,16 +662,16 @@
         }
 
         timelineContainer.addEventListener('mousemove', (e) => {
-            if (isNaN(video.duration)) return;
-            const targetTime = getTimelineTimeFromEvent(e);
-            timePreview.innerText = formatTime(targetTime);
-            timePreview.classList.remove('hidden');
+			if (isNaN(video.duration)) return;
+			const targetTime = getTimelineTimeFromEvent(e);
+			timePreview.innerText = formatTime(targetTime);
+			timePreview.classList.remove('hidden');
 
-            const rect = timelineContainer.getBoundingClientRect();
-            const offsetLeft = e.clientX - rect.left + 55; 
-            timePreview.style.left = `${offsetLeft}px`;
-            timePreview.style.transform = 'translateX(-50%)';
-        });
+			const rect = timelineContainer.getBoundingClientRect();
+			const offsetLeft = e.clientX - rect.left;
+			timePreview.style.left = `${offsetLeft}px`;
+			timePreview.style.transform = 'translateX(-50%)';
+		});
 
         timelineContainer.addEventListener('mouseleave', () => {
             timePreview.classList.add('hidden');
