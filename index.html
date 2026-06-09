@@ -490,7 +490,7 @@
             const savedTime = localStorage.getItem(`progress_${activeMovieFile}`);
             
             if (savedTime && parseFloat(savedTime) > 5) {
-                resumeText.innerText = `Would you like to resume this video at ${formatTime(parseFloat(savedTime))}?`;
+                resumeText.innerText = `Would you like to resume this movie at ${formatTime(parseFloat(savedTime))}?`;
                 resumeModal.classList.remove('hidden');
 
                 resumeBtnYes.onclick = () => {
