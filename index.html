@@ -6,6 +6,24 @@
     <title>Local Media Server</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        
+        :root {
+            font-size: 16px;
+        }
+
+        @media screen and (max-width: 768px) {
+            :root {
+                font-size: 13px; 
+            }
+        }
+
+        @media screen and (min-width: 2560px) {
+            :root {
+                font-size: 20px;
+            }
+        }
+
+
         .backdrop-gradient {
             background: linear-gradient(to top, #09090b 5%, rgba(9, 9, 11, 0.1) 50%, rgba(9, 9, 11, 0.7) 100%);
         }
@@ -15,11 +33,19 @@
 
         .carousel-viewport {
             position: relative;
-            height: 75vh;
+            height: 70vh; 
+            max-height: 800px; 
             width: 100%;
             overflow: hidden;
             background: #09090b;
         }
+
+        @media (min-width: 2560px) {
+            .carousel-viewport {
+                height: 60vh;
+            }
+        }
+
         .hero-slide {
             position: absolute;
             inset: 0;
@@ -155,15 +181,15 @@
         <header id="hero-slide-a" class="hero-slide slide-active">
             <div class="slide-bg"></div>
             <div class="absolute inset-0 backdrop-gradient z-10"></div>
-            <div class="slide-content relative z-20 w-full max-w-7xl px-8 pb-24 md:px-16 flex flex-col gap-6 mx-auto">
-                <div class="h-36 md:h-48 w-full max-w-sm md:max-w-xl flex items-end container-logo">
+            <div class="slide-content relative z-20 w-full max-w-7xl px-8 pb-16 md:px-16 flex flex-col gap-6 mx-auto">
+                <div class="h-32 md:h-44 w-full max-w-sm md:max-w-xl flex items-end container-logo">
                     <h1 class="text-5xl md:text-7xl font-black tracking-tight drop-shadow-md current-title hidden">Loading...</h1>
                     <img class="max-h-full max-w-full object-contain current-logo filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)]" src="" alt="">
                 </div>
-                <p class="text-zinc-200 text-base md:text-lg max-w-3xl line-clamp-3 current-desc drop-shadow">No movie files found. Place them in the Movies folder and run setup.py</p>
+                <p class="text-zinc-200 text-sm md:text-base max-w-3xl line-clamp-3 current-desc drop-shadow">No movie files found. Place them in the Movies folder and run setup.py</p>
                 <div class="mt-2">
-                    <button class="bg-white text-black hover:bg-zinc-200 font-bold px-8 py-4 rounded-xl transition flex items-center gap-3 shadow-2xl btn-play text-base md:text-lg transform active:scale-95">
-                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play Movie
+                    <button class="bg-white text-black hover:bg-zinc-200 font-bold px-7 py-3 rounded-xl transition flex items-center gap-3 shadow-2xl btn-play text-sm md:text-base transform active:scale-95">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play Movie
                     </button>
                 </div>
             </div>
@@ -172,15 +198,15 @@
         <header id="hero-slide-b" class="hero-slide">
             <div class="slide-bg"></div>
             <div class="absolute inset-0 backdrop-gradient z-10"></div>
-            <div class="slide-content relative z-20 w-full max-w-7xl px-8 pb-24 md:px-16 flex flex-col gap-6 mx-auto">
-                <div class="h-36 md:h-48 w-full max-w-sm md:max-w-xl flex items-end container-logo">
+            <div class="slide-content relative z-20 w-full max-w-7xl px-8 pb-16 md:px-16 flex flex-col gap-6 mx-auto">
+                <div class="h-32 md:h-44 w-full max-w-sm md:max-w-xl flex items-end container-logo">
                     <h1 class="text-5xl md:text-7xl font-black tracking-tight drop-shadow-md current-title hidden"></h1>
                     <img class="max-h-full max-w-full object-contain current-logo filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)]" src="" alt="">
                 </div>
-                <p class="text-zinc-200 text-base md:text-lg max-w-3xl line-clamp-3 current-desc drop-shadow"></p>
+                <p class="text-zinc-200 text-sm md:text-base max-w-3xl line-clamp-3 current-desc drop-shadow"></p>
                 <div class="mt-2">
-                    <button class="bg-white text-black hover:bg-zinc-200 font-bold px-8 py-4 rounded-xl transition flex items-center gap-3 shadow-2xl btn-play text-base md:text-lg transform active:scale-95">
-                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play Movie
+                    <button class="bg-white text-black hover:bg-zinc-200 font-bold px-7 py-3 rounded-xl transition flex items-center gap-3 shadow-2xl btn-play text-sm md:text-base transform active:scale-95">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play Movie
                     </button>
                 </div>
             </div>
@@ -196,9 +222,9 @@
         </div>
     </div>
 
-    <main class="max-w-7xl mx-auto px-8 md:px-16 py-12 relative z-20 -mt-10">
-        <h2 class="text-xs font-bold tracking-widest text-zinc-500 mb-6 uppercase">My Library</h2>
-        <div id="movie-grid" class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-6 gap-y-10 justify-center"></div>
+    <main class="max-w-7xl mx-auto px-8 md:px-16 py-10 relative z-20 -mt-6">
+        <h2 class="text-sm font-bold tracking-widest text-zinc-500 mb-6 uppercase">My Library</h2>
+        <div id="movie-grid" class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-6 gap-y-10 justify-center"></div>
     </main>
 
     <div id="video-modal" class="fixed inset-0 bg-black z-50 hidden flex items-center justify-center select-none group">
@@ -351,7 +377,7 @@
 
         function renderGrid(library) {
             grid.innerHTML = library.map((movie, index) => `
-                <div onclick="launchTheaterByIndex(${index})" class="group cursor-pointer flex flex-col gap-2 w-full max-w-[220px]">
+                <div onclick="launchTheaterByIndex(${index})" class="group cursor-pointer flex flex-col gap-2 w-full max-w-[200px]">
                     <div class="aspect-[2/3] w-full bg-zinc-900 rounded-lg overflow-hidden relative shadow-md">
                         <div class="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105 " style="background-image: url('${movie.poster || 'metadata/placeholder.png'}')"></div>
                         <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
