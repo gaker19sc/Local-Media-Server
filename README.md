@@ -1,9 +1,13 @@
 
 # Local Media Server
 
-A lightweight local media server designed to stream your personal movie library directly within the browser, complete with automated metadata fetching and subtitle support.
+A lightweight local media server designed to stream your personal movie library directly within the browser, complete with automated metadata fetching and subtitle support. I run it from a USB drive :)
 
+## Prerequisites
 
+To run this, you need Python and FFmpeg. Download them at
+https://www.python.org/
+https://ffmpeg.org/
 
 ## Getting Started
 
