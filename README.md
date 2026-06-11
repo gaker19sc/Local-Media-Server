@@ -5,9 +5,7 @@ A lightweight local media server designed to stream your personal movie library 
 
 ## Prerequisites
 
-To run this, you need Python and FFmpeg. Download them at
-https://www.python.org/
-https://ffmpeg.org/
+To run this, you need Python and FFmpeg. Download them at https://www.python.org/ and https://ffmpeg.org/
 
 ## Getting Started
 
