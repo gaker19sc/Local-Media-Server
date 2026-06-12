@@ -23,10 +23,6 @@ def print_step(title):
     print(f" {title}")
     print("="*60)
 
-# ==========================================
-# FFPROBE & CONVERSION FUNCTIONS
-# ==========================================
-
 def get_video_info(filepath):
     """Using ffprobe"""
     cmd = [
@@ -42,6 +38,44 @@ def get_video_info(filepath):
         return json.loads(result.stdout)
     except Exception:
         return None
+
+def extract_embedded_subtitles(filepath, info):
+    """Extracts subtitle streams from the video file and saves them as .srt in the subtitles folder."""
+    if not info or 'streams' not in info:
+        return
+    
+    base_name = os.path.splitext(os.path.basename(filepath))[0]
+    subtitles_dir = os.path.join(MOVIE_DIR, "Subtitles")
+    os.makedirs(subtitles_dir, exist_ok=True)
+    
+    for stream in info['streams']:
+        if stream.get('codec_type') == 'subtitle':
+            stream_index = stream.get('index')
+            lang = stream.get('tags', {}).get('language', 'en').lower()
+            
+            if len(lang) > 2:
+                if lang in ['ger', 'deu']: lang = 'de'
+                elif lang in ['eng']: lang = 'en'
+                else: lang = lang[:2]
+            
+            output_sub_filename = f"{base_name}_{lang}.srt"
+            output_sub_path = os.path.join(subtitles_dir, output_sub_filename)
+            
+            if os.path.exists(output_sub_path):
+                continue
+                
+            print(f"     [Subtitles] Extracting track {stream_index} ({lang}) to '{output_sub_filename}'...")
+            
+            sub_cmd = [
+                'ffmpeg', '-y', '-v', 'quiet',
+                '-i', filepath,
+                '-map', f'0:{stream_index}',
+                output_sub_path
+            ]
+            try:
+                subprocess.run(sub_cmd, check=True)
+            except subprocess.CalledProcessError:
+                print(f"     [WARNING] Could not extract subtitle track {stream_index}.")
 
 def get_user_audio_choice(filepath):
     """Lists all available audio tracks and lets the user choose if multiple exist."""
@@ -106,7 +140,7 @@ def get_best_video_encoder():
     return 'libx264'
 
 def auto_convert_file(filepath):
-    """converting the file to work with fast hardware acceleration"""
+    """converting the file to work with fast hardware acceleration - Optimized for Quality & Speed"""
     abs_source = os.path.abspath(filepath)
     source_dir = os.path.dirname(abs_source)
     base_name = os.path.basename(abs_source)
@@ -146,19 +180,21 @@ def auto_convert_file(filepath):
                 if stream.get('codec_type') == 'audio':
                     absolute_audio_index = stream.get('index')
                     break
+                    
     if not has_video_stream or video_codec_needed:
         encoder = get_best_video_encoder()
         print(f"Converting video track for '{base_name}' ({encoder})...")
         
         if encoder == 'h264_nvenc':
-            cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'h264_nvenc', '-preset', 'fast', '-vf', 'format=yuv420p']
+            cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'h264_nvenc', '-preset', 'p4', '-rc', 'constqp', '-qp', '22', '-vf', 'format=yuv420p']
         elif encoder == 'h264_amf':
-            cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'h264_amf', '-vf', 'format=yuv420p']
+            cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'h264_amf', '-rc', 'cqp', '-qp_i', '22', '-qp_p', '22', '-quality', 'quality', '-vf', 'format=yuv420p']
         else:
-            cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'libx264', '-vf', 'format=yuv420p', '-crf', '22', '-preset', 'medium']
+            cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'libx264', '-vf', 'format=yuv420p', '-crf', '21', '-preset', 'medium']
     else:
         print(f"Copying video track for '{base_name}'...")
         cmd = ['ffmpeg', '-y', '-i', abs_source, '-c:v', 'copy']
+        
     if has_video_stream:
         if absolute_audio_index is not None:
             cmd += ['-map', '0:v:0', '-map', f'0:{absolute_audio_index}', '-c:a', 'aac', '-ac', '2', '-b:a', '192k']
@@ -166,6 +202,7 @@ def auto_convert_file(filepath):
             cmd += ['-map', '0:v:0']
     else:
         cmd += ['-map', '0', '-c:a', 'aac', '-ac', '2', '-b:a', '192k']
+        
     cmd += [temp_output_path]
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, encoding='utf-8')
@@ -223,11 +260,6 @@ def auto_convert_file(filepath):
         print(f"     Error while converting {base_name}: {e}")
         if os.path.exists(temp_output_path):
             os.remove(temp_output_path)
-
-
-# ==========================================
-# METADATA SCRAPER FUNCTIONS (FORMERLY FETCH.PY)
-# ==========================================
 
 def clean_filename(filename):
     name = os.path.splitext(filename)[0]
@@ -357,11 +389,6 @@ def scrape_metadata(api_key):
 
     print(f"\nSuccess! Generated library data for {len(movies_list)} movies.")
 
-
-# ==========================================
-# MAIN EXECUTION
-# ==========================================
-
 def main():
     print_step("Checking the movie directory")
     answer = input("Did you already place your movie files in the Movies directory? (y/n): ").strip().lower()
@@ -374,11 +401,12 @@ def main():
         print(f"Folder '{MOVIE_DIR}' created. Please move your files and restart the script")
         sys.exit(0)
         
-    print_step("Converting Files")
-    print(f"Scanning '{MOVIE_DIR}' for incompatible files...")
+    print_step("Processing Files (Subtitles & Formats)")
+    print(f"Scanning '{MOVIE_DIR}' for files and embedded subtitles...")
     
     video_extensions = ('.mp4', '.mkv', '.avi', '.mov', '.webm')
     files_to_convert = []
+    
     for file in os.listdir(MOVIE_DIR):
         filepath = os.path.join(MOVIE_DIR, file)
         if not os.path.isfile(filepath) or not file.lower().endswith(video_extensions):
@@ -387,6 +415,9 @@ def main():
         info = get_video_info(filepath)
         if not info or 'streams' not in info:
             continue
+            
+        extract_embedded_subtitles(filepath, info)
+            
         ext = os.path.splitext(file)[1].lower()
         has_video_issue = False
         has_audio_issue = False
@@ -403,7 +434,7 @@ def main():
             files_to_convert.append(filepath)
             
     if files_to_convert:
-        print(f"Found {len(files_to_convert)} incompatible movies. Converting...\n")
+        print(f"\nFound {len(files_to_convert)} incompatible movies. Converting tracks...\n")
         for filepath in files_to_convert:
             auto_convert_file(filepath)
         print("\nConverted all movies successfully")
