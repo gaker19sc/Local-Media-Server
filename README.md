@@ -9,7 +9,7 @@ To run this, you need Python and FFmpeg. Download them at https://www.python.org
 
 ## Getting Started
 
-To set everything up, place your movie files in the Movies directory. You can also add subtitles.
+To set everything up, place your movie files in the Movies directory. I recommend renaming the files to the movie's title to make sure the TMDB API is going to be able to find it. You can also add subtitles.
 The system supports subtitles using `.srt` files.
 
 1. Place your `.srt` files into the `Movies/Subtitles` folder.
